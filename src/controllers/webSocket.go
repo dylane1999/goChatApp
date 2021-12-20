@@ -7,7 +7,6 @@ import (
 
 	"github.com/dylane1999/goChatApp/src/logger"
 	redisService "github.com/dylane1999/goChatApp/src/services/redis"
-	reidsService "github.com/dylane1999/goChatApp/src/services/redis"
 	"github.com/dylane1999/goChatApp/src/types"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -70,8 +69,10 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 
 func addOldMessages(client *websocket.Conn, oldMessages []string) {
 	for _, message := range oldMessages {
+		// turn the json string into a chat message type
 		var msg types.ChatMessage
 		json.Unmarshal([]byte(message), &msg)
+		// then write that chat message to json again to th socket
 		err := client.WriteJSON(msg)
 		if err != nil && unsafeError(err) {
 			logger.ErrorLogger.Printf("error: %v", err)
@@ -90,7 +91,7 @@ func HandleMessages() {
 		// grab any next message from channel
 		msg := <-messagesChannel
 
-		reidsService.StoreChatMessageInRedis(msg)
+		redisService.StoreChatMessageInRedis(msg)
 		messageClients(msg)
 	}
 }
