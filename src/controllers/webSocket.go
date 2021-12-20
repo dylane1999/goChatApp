@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/http"
 
-	// reidsService "github.com/dylane1999/goChatApp/src/services/redis"
+	reidsService "github.com/dylane1999/goChatApp/src/services/redis"
 	"github.com/dylane1999/goChatApp/src/logger"
 	"github.com/dylane1999/goChatApp/src/types"
 	"github.com/gin-gonic/gin"
@@ -63,7 +63,7 @@ func HandleMessages() {
 		// grab any next message from channel
 		msg := <-broadcaster
 
-		// reidsService.StoreChatMessageInRedis(msg)
+		reidsService.StoreChatMessageInRedis(msg)
 		messageClients(msg)
 	}
 }

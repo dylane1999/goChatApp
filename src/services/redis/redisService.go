@@ -2,6 +2,7 @@ package redisService
 
 import (
 	"encoding/json"
+	"os"
 	// "os"
 
 	// "github.com/dylane1999/goChatApp/src/logger"
@@ -12,22 +13,14 @@ import (
 var RedisClient *redis.Client
 
 func SetupRedisConnection() {
-	// redisURL := os.Getenv("REDIS_URL")
-	// opt, redisErr := redis.ParseURL(redisURL)
-	// if redisErr != nil {
-	// 	logger.ErrorLogger.Fatal("redis failed to connect")
-	// } else {
-	// 	logger.InfoLogger.Print("redis connected succesfully")
-	// }
+	redisURL := os.Getenv("REDIS_URL")
+	redisPass := os.Getenv("REDIS_PASSWORD")
 	RedisClient = redis.NewClient(&redis.Options{
-        Addr:     "localhost:6379",
-        Password: "", // no password set
-        DB:       0,  // use default DB
-    })
-
-
+		Addr:     redisURL,
+		Password: redisPass,
+		DB:       0,
+	})
 }
-
 
 func StoreChatMessageInRedis(msg types.ChatMessage) {
 	json, err := json.Marshal(msg)
@@ -35,9 +28,8 @@ func StoreChatMessageInRedis(msg types.ChatMessage) {
 		panic(err)
 	}
 
-	redisErr := RedisClient.RPush("chat_messages", json).Err();
+	redisErr := RedisClient.RPush("chat_messages", json).Err()
 	if redisErr != nil {
 		panic(redisErr)
 	}
 }
-
