@@ -3,14 +3,17 @@ package redisService
 import (
 	"encoding/json"
 	"os"
+
 	// "os"
 
 	// "github.com/dylane1999/goChatApp/src/logger"
+	"github.com/dylane1999/goChatApp/src/logger"
 	"github.com/dylane1999/goChatApp/src/types"
 	"github.com/go-redis/redis"
 )
 
 var RedisClient *redis.Client
+var RedisChatKey = "chat_messages"
 
 func SetupRedisConnection() {
 	redisURL := os.Getenv("REDIS_URL")
@@ -28,8 +31,17 @@ func StoreChatMessageInRedis(msg types.ChatMessage) {
 		panic(err)
 	}
 
-	redisErr := RedisClient.RPush("chat_messages", json).Err()
+	redisErr := RedisClient.RPush(RedisChatKey, json).Err()
 	if redisErr != nil {
 		panic(redisErr)
 	}
+}
+
+func GetAllMessagesFromChatRoom() []string {
+	messages, err := RedisClient.LRange("chat_messages", 0, -1).Result()
+	if err != nil {
+		panic(err)
+	}
+	logger.InfoLogger.Print(messages)
+	return messages
 }

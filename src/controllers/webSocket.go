@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 
-	reidsService "github.com/dylane1999/goChatApp/src/services/redis"
 	"github.com/dylane1999/goChatApp/src/logger"
+	redisService "github.com/dylane1999/goChatApp/src/services/redis"
+	reidsService "github.com/dylane1999/goChatApp/src/services/redis"
 	"github.com/dylane1999/goChatApp/src/types"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -48,7 +50,10 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	// defer closing of this socket until no longer needed
 	defer wsConnection.Close()
 	clients[wsConnection] = true
-	// continually read from the socket until connection is broken
+	// first send all of the chat's previous messages
+	oldMessages := redisService.GetAllMessagesFromChatRoom()
+	addOldMessages(wsConnection, oldMessages)
+	// then continually read from the socket until connection is broken
 	for {
 		var msg types.ChatMessage
 		// Wait & Read in a new message as JSON and map it to a Message object
@@ -63,9 +68,23 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func addOldMessages(client *websocket.Conn, oldMessages []string) {
+	for _, message := range oldMessages {
+		var msg types.ChatMessage
+		json.Unmarshal([]byte(message), &msg)
+		err := client.WriteJSON(msg)
+		if err != nil && unsafeError(err) {
+			logger.ErrorLogger.Printf("error: %v", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
+
+}
+
 // worker function that is used to receive incoming messages from the channel
 // the incoming messages are stored in the redis cache and also sent to any clients
-// that are currently subscibing to this channel 
+// that are currently subscibing to this channel
 func HandleMessages() {
 	for {
 		// grab any next message from channel
@@ -86,7 +105,7 @@ func messageClients(msg types.ChatMessage) {
 	}
 }
 
-// function that is used to send the message to a given client 
+// function that is used to send the message to a given client
 // uses the arg client *websocket.Con to send the given msg types.ChatMessage
 // to that user. If there is an error besides the user closing the channel as they are supposed to recieve
 // then we should delete the client and close its connection.
