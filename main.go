@@ -29,6 +29,7 @@ func main() {
 	controllers.SetupPingEndpoints(app)
 	controllers.SetupWebSockets(app)
 	app.StaticFile("/main", "./public/index.html")
+	// kick off the go routine to handle incoming messages 
 	go controllers.HandleMessages()
 	// run server on given port 
 	app.Run(":" + port)
