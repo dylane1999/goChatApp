@@ -13,7 +13,6 @@ import (
 )
 
 var RedisClient *redis.Client
-var RedisChatKey = "chat_messages"
 
 func SetupRedisConnection() {
 	redisURL := os.Getenv("REDIS_URL")
@@ -25,20 +24,20 @@ func SetupRedisConnection() {
 	})
 }
 
-func StoreChatMessageInRedis(msg types.ChatMessage) {
+func StoreChatMessageInRedis(roomId string, msg types.ChatMessage) {
 	json, err := json.Marshal(msg)
 	if err != nil {
 		panic(err)
 	}
 
-	redisErr := RedisClient.RPush(RedisChatKey, json).Err()
+	redisErr := RedisClient.RPush(roomId, json).Err()
 	if redisErr != nil {
 		panic(redisErr)
 	}
 }
 
-func GetAllMessagesFromChatRoom() []string {
-	messages, err := RedisClient.LRange("chat_messages", 0, -1).Result()
+func GetAllMessagesFromChatRoom(roomId string) []string {
+	messages, err := RedisClient.LRange(roomId, 0, -1).Result()
 	if err != nil {
 		panic(err)
 	}

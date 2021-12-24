@@ -12,11 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var wsupgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
 // map of available websockets and if they are open
 var clients = make(map[*websocket.Conn]bool)
 
@@ -33,15 +28,22 @@ var upgrader = websocket.Upgrader{
 // api endpoint for setting up a new socket and reading from it
 func SetupWebSockets(app *gin.Engine) {
 	app.GET("/websocket", func(c *gin.Context) {
-		wshandler(c.Writer, c.Request)
+		chatroomId, roomIdPresent := c.GetQuery("chatroomId")
+		// if room id param not present throw not found
+		if !roomIdPresent {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"errorMessage": "the given chatroom id is blank",
+			})
+		}
+		wshandler(c.Writer, c.Request, chatroomId)
 	})
 }
 
 // function to handle upgrading and reading from sockets until the connection is broken
 // takes two args w http.ResponseWriter, r *http.Request which are used to create the websocket
 // continually listens for incoming JSON messages from the client to add to the messages/chatroom channel
-func wshandler(w http.ResponseWriter, r *http.Request) {
-	//upgrade req into web socket
+func wshandler(w http.ResponseWriter, r *http.Request, chatroomId string) {
+	//upgrade req into web sockec t
 	wsConnection, wsErr := upgrader.Upgrade(w, r, nil)
 	if wsErr != nil {
 		logger.ErrorLogger.Fatal("web socket upgrade failed")
@@ -50,7 +52,7 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	defer wsConnection.Close()
 	clients[wsConnection] = true
 	// first send all of the chat's previous messages
-	oldMessages := redisService.GetAllMessagesFromChatRoom()
+	oldMessages := redisService.GetAllMessagesFromChatRoom(chatroomId)
 	addOldMessages(wsConnection, oldMessages)
 	// then continually read from the socket until connection is broken
 	for {
@@ -91,7 +93,7 @@ func HandleMessages() {
 		// grab any next message from channel
 		msg := <-messagesChannel
 
-		redisService.StoreChatMessageInRedis(msg)
+		redisService.StoreChatMessageInRedis(msg.ChannelId, msg)
 		messageClients(msg)
 	}
 }
