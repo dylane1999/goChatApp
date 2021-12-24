@@ -31,6 +31,7 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

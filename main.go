@@ -26,7 +26,7 @@ func main() {
 	port := os.Getenv("PORT")
 	// setup gin engine and routes
 	app := gin.Default()
-	controllers.SetupPingEndpoints(app)
+	controllers.SetupCreateChannelEndpoints(app)
 	controllers.SetupWebSockets(app)
 	app.StaticFile("/main", "./public/index.html")
 	// kick off the go routine to handle incoming messages 

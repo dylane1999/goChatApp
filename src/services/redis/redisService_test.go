@@ -8,10 +8,11 @@ import (
 	"github.com/dylane1999/goChatApp/src/logger"
 	"github.com/dylane1999/goChatApp/src/types"
 	"github.com/go-redis/redis"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-func startMiniRedis() {
+func StartMockMiniRedis() {
 	// setup mini redis client
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -27,7 +28,7 @@ func TestRedisConnection(test *testing.T) {
 	//start loggers
 	logger.SetupLoggers()
 	// setup mini redis connection
-	startMiniRedis()
+	StartMockMiniRedis()
 	// ping and test redis connection
 	var ping *redis.StatusCmd = RedisClient.Ping()
 	connectionErr := ping.Err()
@@ -38,7 +39,7 @@ func TestStoreAndGetChatMessage(test *testing.T) {
 	//start loggers
 	logger.SetupLoggers()
 	// setup mini redis
-	startMiniRedis()
+	StartMockMiniRedis()
 	// use room id
 	roomId := "testRoomID"
 	expectedNumElements := 1
@@ -47,7 +48,8 @@ func TestStoreAndGetChatMessage(test *testing.T) {
 	// create msg to save
 	msgToSave := types.ChatMessage{Username: "df", Text: "dff"}
 	StoreChatMessageInRedis(roomId, msgToSave)
-	var chatMsgs []string = GetAllMessagesFromChatRoom(roomId)
+	chatMsgs, redisErr := GetAllMessagesFromChatRoom(roomId)
+	assert.Nil(test, redisErr, "redis err should be nil")
 	assert.Equal(test, expectedNumElements, len(chatMsgs))
 	// turn json string back into message type
 	var actualMsg types.ChatMessage
@@ -60,11 +62,28 @@ func TestGetAMessageThatDoesNotExist(test *testing.T) {
 	//start loggers
 	logger.SetupLoggers()
 	// setup mini redis
-	startMiniRedis()
+	StartMockMiniRedis()
 	roomId := "testRoomID"
 	// clear redis
 	RedisClient.FlushDB()
 	// create msg to save
-	chatMsgs := GetAllMessagesFromChatRoom(roomId)
+	chatMsgs, redisErr := GetAllMessagesFromChatRoom(roomId)
+	assert.Nil(test, redisErr, "redis err should be nil")
 	assert.Empty(test, chatMsgs, "there should be no messages under this room")
+}
+
+func TestCreateNewChatroom(test *testing.T) {
+	//start loggers
+	logger.SetupLoggers()
+	// setup mini redis
+	StartMockMiniRedis()
+	// clear redis
+	RedisClient.FlushDB()
+	// push chat id
+	chatId := uuid.New()
+	AddToListOfChatrooms(chatId.String())
+	validRooms, err := GetValidRooms()
+	assert.Nil(test, err, "redis err should be nil")
+	assert.Equal(test, 1, len(validRooms), "there should only be one valid room at this point")
+	assert.Equal(test, chatId.String(), validRooms[0], "the room should be equal to the one added")
 }

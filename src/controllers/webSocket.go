@@ -16,7 +16,7 @@ import (
 var clients = make(map[*websocket.Conn]bool)
 
 // channel that is responsible for sending and recieving chat messages
-var messagesChannel = make(chan types.ChatMessage)
+var MessagesChannel = make(chan types.ChatMessage)
 
 // upgrader is used to upgrade incoming req into a websocket
 var upgrader = websocket.Upgrader{
@@ -35,14 +35,20 @@ func SetupWebSockets(app *gin.Engine) {
 				"errorMessage": "the given chatroom id is blank",
 			})
 		}
-		wshandler(c.Writer, c.Request, chatroomId)
+		// check if that room exists
+		if !roomIdPresent {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"errorMessage": "the given chatroom id is blank",
+			})
+		}
+		wshandler(c, c.Writer, c.Request, chatroomId)
 	})
 }
 
 // function to handle upgrading and reading from sockets until the connection is broken
 // takes two args w http.ResponseWriter, r *http.Request which are used to create the websocket
 // continually listens for incoming JSON messages from the client to add to the messages/chatroom channel
-func wshandler(w http.ResponseWriter, r *http.Request, chatroomId string) {
+func wshandler(c *gin.Context, w http.ResponseWriter, r *http.Request, chatroomId string) {
 	//upgrade req into web sockec t
 	wsConnection, wsErr := upgrader.Upgrade(w, r, nil)
 	if wsErr != nil {
@@ -52,7 +58,13 @@ func wshandler(w http.ResponseWriter, r *http.Request, chatroomId string) {
 	defer wsConnection.Close()
 	clients[wsConnection] = true
 	// first send all of the chat's previous messages
-	oldMessages := redisService.GetAllMessagesFromChatRoom(chatroomId)
+	oldMessages, redisErr := redisService.GetAllMessagesFromChatRoom(chatroomId)
+	if redisErr != nil {
+		delete(clients, wsConnection)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errorMessage": "failure communicating with redis",
+		})
+	}
 	addOldMessages(wsConnection, oldMessages)
 	// then continually read from the socket until connection is broken
 	for {
@@ -65,7 +77,7 @@ func wshandler(w http.ResponseWriter, r *http.Request, chatroomId string) {
 			break
 		}
 		// send new message to the channel
-		messagesChannel <- msg
+		MessagesChannel <- msg
 	}
 }
 
@@ -91,7 +103,7 @@ func addOldMessages(client *websocket.Conn, oldMessages []string) {
 func HandleMessages() {
 	for {
 		// grab any next message from channel
-		msg := <-messagesChannel
+		msg := <-MessagesChannel
 
 		redisService.StoreChatMessageInRedis(msg.ChannelId, msg)
 		messageClients(msg)
