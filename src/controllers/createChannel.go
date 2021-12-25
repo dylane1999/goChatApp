@@ -16,8 +16,8 @@ func SetupCreateChannelEndpoints(app *gin.Engine) {
 
 func CreateChannelHandler(context *gin.Context) {
 	// create a new channel
-	newChannelId := uuid.New().String()
-	redisErr := redisService.AddToListOfChatrooms(newChannelId)
+	newChatroomId := uuid.New().String()
+	redisErr := redisService.AddToListOfChatrooms(newChatroomId)
 	if redisErr != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorMessage":   "failed to create new channel",
@@ -25,7 +25,7 @@ func CreateChannelHandler(context *gin.Context) {
 	}
 	context.JSON(http.StatusOK, gin.H{
 		"message":   "new channel has been created",
-		"channelId": newChannelId,
+		"chatroomId": newChatroomId,
 	})
 
 }

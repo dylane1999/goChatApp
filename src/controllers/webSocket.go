@@ -8,6 +8,7 @@ import (
 	"github.com/dylane1999/goChatApp/src/logger"
 	redisService "github.com/dylane1999/goChatApp/src/services/redis"
 	"github.com/dylane1999/goChatApp/src/types"
+	"github.com/dylane1999/goChatApp/src/util"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -25,31 +26,53 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+
+
 // api endpoint for setting up a new socket and reading from it
 func SetupWebSockets(app *gin.Engine) {
 	app.GET("/websocket", func(c *gin.Context) {
-		chatroomId, roomIdPresent := c.GetQuery("chatroomId")
-		// if room id param not present throw not found
-		if !roomIdPresent {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"errorMessage": "the given chatroom id is blank",
-			})
-		}
-		// check if that room exists
-		if !roomIdPresent {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"errorMessage": "the given chatroom id is blank",
-			})
-		}
-		wshandler(c, c.Writer, c.Request, chatroomId)
+		WebSocketHandler(c.Writer, c.Request)
 	})
 }
+
+
+
 
 // function to handle upgrading and reading from sockets until the connection is broken
 // takes two args w http.ResponseWriter, r *http.Request which are used to create the websocket
 // continually listens for incoming JSON messages from the client to add to the messages/chatroom channel
-func wshandler(c *gin.Context, w http.ResponseWriter, r *http.Request, chatroomId string) {
-	//upgrade req into web sockec t
+func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
+	// check for room id
+	chatroomId := r.URL.Query().Get("chatroomId")
+	if chatroomId == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		resp := make(map[string]interface{})
+		resp["errorMessage"] = "the given chatroom id is blank"
+		jsonResp, err := json.Marshal(resp)
+		if err != nil {
+			logger.ErrorLogger.Fatalf("Error happened in JSON marshal. Err: %s", err)
+		}
+		w.Write(jsonResp)
+		return
+	}
+	// if no room fail
+	rooms, getRoomErr := redisService.GetValidRooms()
+	if getRoomErr != nil {
+		logger.ErrorLogger.Fatalf("error redis")
+	}
+	roomExists := util.DoesIdExist(rooms, chatroomId)
+	if !roomExists {
+		w.WriteHeader(http.StatusBadRequest)
+		resp := make(map[string]interface{})
+		resp["errorMessage"] = "the given chatroom id is blank"
+		jsonResp, err := json.Marshal(resp)
+		if err != nil {
+			logger.ErrorLogger.Fatalf("Error happened in JSON marshal. Err: %s", err)
+		}
+		w.Write(jsonResp)
+		return
+	}
+	//upgrade req into web socket
 	wsConnection, wsErr := upgrader.Upgrade(w, r, nil)
 	if wsErr != nil {
 		logger.ErrorLogger.Fatal("web socket upgrade failed")
@@ -60,10 +83,7 @@ func wshandler(c *gin.Context, w http.ResponseWriter, r *http.Request, chatroomI
 	// first send all of the chat's previous messages
 	oldMessages, redisErr := redisService.GetAllMessagesFromChatRoom(chatroomId)
 	if redisErr != nil {
-		delete(clients, wsConnection)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"errorMessage": "failure communicating with redis",
-		})
+		logger.ErrorLogger.Fatalf("redis failure")
 	}
 	addOldMessages(wsConnection, oldMessages)
 	// then continually read from the socket until connection is broken
@@ -105,7 +125,7 @@ func HandleMessages() {
 		// grab any next message from channel
 		msg := <-MessagesChannel
 
-		redisService.StoreChatMessageInRedis(msg.ChannelId, msg)
+		redisService.StoreChatMessageInRedis(msg.ChatroomId, msg)
 		messageClients(msg)
 	}
 }

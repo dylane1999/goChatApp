@@ -53,4 +53,7 @@ func TestSetupCreateChannelEndpoints(test *testing.T) {
 		test.Fatalf("Expected to get status %d but instead got %d\n", http.StatusOK, recorder.Code)
 	}
 
+	// now check that the item is stored correctly
+	
+
 }
