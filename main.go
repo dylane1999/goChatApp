@@ -28,6 +28,7 @@ func main() {
 	app := gin.Default()
 	controllers.SetupCreateChannelEndpoints(app)
 	controllers.SetupWebSockets(app)
+	controllers.SetupGetOpenChannelEndpoints(app)
 	app.StaticFile("/main", "./public/index.html")
 	// kick off the go routine to handle incoming messages 
 	go controllers.HandleMessages()
