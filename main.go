@@ -26,6 +26,7 @@ func main() {
 	port := os.Getenv("PORT")
 	// setup gin engine and routes
 	app := gin.Default()
+	controllers.SetupHealthEndpoint(app)
 	controllers.SetupCreateChannelEndpoints(app)
 	controllers.SetupWebSockets(app)
 	controllers.SetupGetOpenChannelEndpoints(app)
